@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Neighbors · AppADay #008</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --tile: #1c1c28;
+    --tile-hover: #252535;
+    --tile-border: #2e2e45;
+    --accent: #e8c547;
+    --accent-dim: #b89a30;
+    --text: #f0ede6;
+    --text-muted: #6b6880;
+    --success: #4ecb71;
+    --hint: #4ecb71;
+    --gap: 6px;
+    --tile-size: clamp(68px, 18vw, 88px);
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,197,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,197,71,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .nav {
+    width: 100%;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e2e;
+    position: relative;
+    z-index: 1;
+  }
+
+  .nav-back {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+  .nav-back:hover { color: var(--accent); }
+
+  .nav-badge {
+    font-family: 'Teko', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .nav-badge span { color: var(--accent); font-weight: 600; }
+
+  main {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 40px;
+    width: 100%;
+    max-width: 440px;
+  }
+
+  h1 {
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(52px, 14vw, 72px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 0.9;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 2px;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid #1e1e2e;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .stat:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .stat:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .stat-value {
+    font-family: 'Teko', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-value.accent { color: var(--accent); }
+
+  .grid-selector {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .grid-btn {
+    background: var(--surface);
+    border: 1px solid #1e1e2e;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .grid-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+  .grid-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+  }
+
+  .board-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .board {
+    position: relative;
+    background: var(--surface);
+    padding: var(--gap);
+    border-radius: 12px;
+    border: 1px solid #1e1e2e;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .cell-ghost {
+    position: absolute;
+    background: rgba(255,255,255,0.03);
+    border: 1px dashed #1e1e2e;
+    border-radius: var(--radius);
+  }
+
+  .tile {
+    position: absolute;
+    background: var(--tile);
+    border: 1px solid var(--tile-border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(26px, 6vw, 36px);
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: 0.02em;
+    transition: left 0.13s cubic-bezier(0.25,0.46,0.45,0.94),
+                top  0.13s cubic-bezier(0.25,0.46,0.45,0.94),
+                background 0.1s, border-color 0.15s, box-shadow 0.15s;
+    z-index: 2;
+  }
+
+  .tile:hover { background: var(--tile-hover); border-color: var(--accent-dim); }
+
+  .tile.movable {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 16px rgba(232,197,71,0.15);
+  }
+  .tile.movable:hover { background: #222232; }
+
+  .tile.hint-tile {
+    border-color: var(--hint) !important;
+    box-shadow: 0 0 0 1px var(--hint), 0 4px 20px rgba(78,203,113,0.35) !important;
+    color: var(--hint);
+  }
+
+  .win-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    background: rgba(10,10,15,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s;
+    z-index: 10;
+  }
+  .win-overlay.show { opacity: 1; pointer-events: all; }
+
+  .win-title {
+    font-family: 'Teko', sans-serif;
+    font-size: 52px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    line-height: 1;
+    animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .win-stats {
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+  .win-stats strong { color: var(--text); }
+
+  @keyframes pop {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: var(--radius);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: #f5d655; box-shadow: 0 0 20px rgba(232,197,71,0.3); }
+  .btn-primary:active { transform: scale(0.97); }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text-muted);
+    border-color: #1e1e2e;
+  }
+  .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-secondary:active { transform: scale(0.97); }
+  .btn-secondary.hint-active { border-color: var(--hint); color: var(--hint); }
+
+  .best-row {
+    margin-top: 14px;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+  .best-row span { color: var(--accent); }
+
+  @keyframes flash-success {
+    0%   { border-color: var(--success); }
+    50%  { border-color: var(--success); background: rgba(78,203,113,0.08); }
+    100% { border-color: #1e1e2e; }
+  }
+  .board.solved-flash { animation: flash-success 0.6s ease; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="nav-back" href="https://augustineiacopelli.github.io">← portfolio</a>
+  <span class="nav-badge"><span>#008</span> · AppADay</span>
+</nav>
+
+<main>
+  <h1>NUMBER<br><em>NEIGHBORS</em></h1>
+  <p class="subtitle">Sliding Tile Puzzle</p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Moves</div>
+      <div class="stat-value accent" id="move-count">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Time</div>
+      <div class="stat-value" id="timer-display">0:00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Best</div>
+      <div class="stat-value" id="best-display">—</div>
+    </div>
+  </div>
+
+  <div class="grid-selector">
+    <button class="grid-btn" data-size="3">3×3</button>
+    <button class="grid-btn active" data-size="4">4×4</button>
+    <button class="grid-btn" data-size="5">5×5</button>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+    <div class="win-overlay" id="win-overlay">
+      <div class="win-title">SOLVED</div>
+      <div class="win-stats" id="win-stats"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="new-btn">New Game</button>
+    <button class="btn btn-secondary" id="hint-btn">Hint</button>
+  </div>
+
+  <div class="best-row" id="best-row" style="display:none">
+    Personal best: <span id="pb-display"></span>
+  </div>
+</main>
+
+<script>
+  // ─── State ──────────────────────────────────────────
+  let gridSize = 4;
+  let tiles = [];
+  let emptyIdx = 0;
+  let moves = 0;
+  let seconds = 0;
+  let timerInterval = null;
+  let gameActive = false;
+  let hintVal = null;
+  let hintVisible = false;
+  let animating = false;
+  let solverToken = 0;   // incremented to cancel in-flight solves
+  let bestScores = JSON.parse(localStorage.getItem('nn_best') || '{}');
+
+  const board      = document.getElementById('board');
+  const winOverlay = document.getElementById('win-overlay');
+  const winStats   = document.getElementById('win-stats');
+  const moveCount  = document.getElementById('move-count');
+  const timerDisp  = document.getElementById('timer-display');
+  const bestDisp   = document.getElementById('best-display');
+  const bestRow    = document.getElementById('best-row');
+  const pbDisp     = document.getElementById('pb-display');
+  const hintBtn    = document.getElementById('hint-btn');
+
+  // ─── Timer ──────────────────────────────────────────
+  function startTimer() {
+    stopTimer(); seconds = 0; updateTimerDisplay();
+    timerInterval = setInterval(() => { seconds++; updateTimerDisplay(); }, 1000);
+  }
+  function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+  function updateTimerDisplay() {
+    const m = Math.floor(seconds / 60), s = seconds % 60;
+    timerDisp.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+  }
+
+  // ─── Puzzle logic ────────────────────────────────────
+  function goalState() {
+    const arr = [];
+    for (let i = 1; i < gridSize * gridSize; i++) arr.push(i);
+    arr.push(0);
+    return arr;
+  }
+
+  function isGoal(arr) {
+    const g = goalState();
+    return arr.every((v, i) => v === g[i]);
+  }
+
+  function isSolvable(arr) {
+    const n = gridSize;
+    const flat = arr.filter(x => x !== 0);
+    let inv = 0;
+    for (let i = 0; i < flat.length; i++)
+      for (let j = i + 1; j < flat.length; j++)
+        if (flat[i] > flat[j]) inv++;
+    if (n % 2 === 1) return inv % 2 === 0;
+    const rowFromBottom = n - Math.floor(arr.indexOf(0) / n);
+    return rowFromBottom % 2 === 0 ? inv % 2 === 1 : inv % 2 === 0;
+  }
+
+  function shuffle() {
+    const n = gridSize * gridSize;
+    let arr;
+    do { arr = [...Array(n).keys()].sort(() => Math.random() - 0.5); }
+    while (!isSolvable(arr) || isGoal(arr));
+    return arr;
+  }
+
+  function getMovable() {
+    emptyIdx = tiles.indexOf(0);
+    const n = gridSize, movable = new Set();
+    const row = Math.floor(emptyIdx / n), col = emptyIdx % n;
+    if (row > 0)     movable.add(emptyIdx - n);
+    if (row < n - 1) movable.add(emptyIdx + n);
+    if (col > 0)     movable.add(emptyIdx - 1);
+    if (col < n - 1) movable.add(emptyIdx + 1);
+    return movable;
+  }
+
+  // ─── A* solver (chunked with setTimeout to stay non-blocking) ───
+  // Binary min-heap
+  class MinHeap {
+    constructor() { this.h = []; }
+    push(node) {
+      this.h.push(node);
+      let i = this.h.length - 1;
+      while (i > 0) {
+        const p = (i - 1) >> 1;
+        if (this.h[p].f <= this.h[i].f) break;
+        [this.h[p], this.h[i]] = [this.h[i], this.h[p]];
+        i = p;
+      }
+    }
+    pop() {
+      const top = this.h[0], last = this.h.pop();
+      if (this.h.length) {
+        this.h[0] = last;
+        let i = 0;
+        while (true) {
+          let s = i, l = 2*i+1, r = 2*i+2;
+          if (l < this.h.length && this.h[l].f < this.h[s].f) s = l;
+          if (r < this.h.length && this.h[r].f < this.h[s].f) s = r;
+          if (s === i) break;
+          [this.h[s], this.h[i]] = [this.h[i], this.h[s]];
+          i = s;
+        }
+      }
+      return top;
+    }
+    get size() { return this.h.length; }
+  }
+
+  function manhattan(s, size) {
+    let d = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (s[i] === 0) continue;
+      const val = s[i] - 1;
+      d += Math.abs(Math.floor(val / size) - Math.floor(i / size))
+         + Math.abs(val % size - i % size);
+    }
+    return d;
+  }
+
+  function isGoalArr(s, size) {
+    for (let i = 0; i < size * size - 1; i++) if (s[i] !== i + 1) return false;
+    return s[size * size - 1] === 0;
+  }
+
+  // Runs up to CHUNK_SIZE iterations then yields via setTimeout.
+  // token lets us cancel a stale solve when a new one is requested.
+  const CHUNK_SIZE = 3000;
+
+  function solveChunked(state, size, token, onDone) {
+    const open = new MinHeap();
+    const best = new Map();
+    const startKey = state.join(',');
+    best.set(startKey, 0);
+    open.push({ f: manhattan(state, size), g: 0, state, firstMove: null });
+
+    function step() {
+      if (solverToken !== token) return; // cancelled
+
+      const deadline = Date.now() + 14; // ~14ms per chunk (< one frame)
+      while (open.size && Date.now() < deadline) {
+        const cur = open.pop();
+        if (isGoalArr(cur.state, size)) { onDone(cur.firstMove); return; }
+
+        const ei = cur.state.indexOf(0);
+        const row = Math.floor(ei / size), col = ei % size;
+        const dirs = [];
+        if (row > 0)      dirs.push(ei - size);
+        if (row < size-1) dirs.push(ei + size);
+        if (col > 0)      dirs.push(ei - 1);
+        if (col < size-1) dirs.push(ei + 1);
+
+        for (const ni of dirs) {
+          const ns = [...cur.state];
+          [ns[ei], ns[ni]] = [ns[ni], ns[ei]];
+          const ng = cur.g + 1;
+          const k = ns.join(',');
+          if (best.has(k) && best.get(k) <= ng) continue;
+          best.set(k, ng);
+          open.push({ f: ng + manhattan(ns, size), g: ng, state: ns, firstMove: cur.firstMove ?? ns[ei] });
+        }
+      }
+
+      if (open.size) {
+        setTimeout(step, 0); // yield and continue next tick
+      } else {
+        onDone(null); // exhausted — shouldn't happen on valid puzzle
+      }
+    }
+
+    setTimeout(step, 0);
+  }
+
+  // ─── Tile size helpers ───────────────────────────────
+  function getTileSize() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--tile-size').trim();
+    const test = document.createElement('div');
+    test.style.cssText = `position:fixed;visibility:hidden;width:${raw};height:0`;
+    document.body.appendChild(test);
+    const sz = test.getBoundingClientRect().width;
+    document.body.removeChild(test);
+    return sz;
+  }
+
+  function getGap() {
+    return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 6;
+  }
+
+  function cellPos(idx) {
+    const gap = getGap(), sz = getTileSize();
+    return {
+      left: gap + (idx % gridSize) * (sz + gap),
+      top:  gap + Math.floor(idx / gridSize) * (sz + gap)
+    };
+  }
+
+  function boardPx() {
+    const gap = getGap(), sz = getTileSize();
+    return gap * 2 + gridSize * sz + (gridSize - 1) * gap;
+  }
+
+  let tileEls = {};
+
+  // ─── Render ──────────────────────────────────────────
+  function render() {
+    const gap = getGap(), sz = getTileSize(), px = boardPx();
+    const movable = getMovable();
+
+    board.innerHTML = '';
+    board.style.width = board.style.height = px + 'px';
+    tileEls = {};
+
+    for (let i = 0; i < gridSize * gridSize; i++) {
+      const g = document.createElement('div');
+      g.className = 'cell-ghost';
+      const p = cellPos(i);
+      g.style.cssText = `left:${p.left}px;top:${p.top}px;width:${sz}px;height:${sz}px`;
+      board.appendChild(g);
+    }
+
+    tiles.forEach((val, idx) => {
+      if (val === 0) return;
+      const p = cellPos(idx);
+      const el = document.createElement('div');
+      el.className = 'tile';
+      el.textContent = val;
+      el.style.transition = 'none';
+      el.style.left = p.left + 'px';
+      el.style.top  = p.top  + 'px';
+      el.style.width = el.style.height = sz + 'px';
+      if (movable.has(idx)) el.classList.add('movable');
+      if (hintVisible && val === hintVal) el.classList.add('hint-tile');
+      el.dataset.val = val;
+      board.appendChild(el);
+      tileEls[val] = el;
+    });
+  }
+
+  function updateHighlights() {
+    const movable = getMovable();
+    tiles.forEach((val, idx) => {
+      if (val === 0) return;
+      const el = tileEls[val];
+      if (!el) return;
+      el.classList.toggle('movable', movable.has(idx));
+      el.classList.toggle('hint-tile', hintVisible && val === hintVal);
+    });
+  }
+
+  // ─── Move ────────────────────────────────────────────
+  // Always derive idx fresh from tiles[] so stale closures can't corrupt state
+  function handleTileClick(val) {
+    if (!gameActive || animating) return;
+    const idx = tiles.indexOf(val);
+    if (idx === -1) return;
+    const movable = getMovable();
+    if (!movable.has(idx)) return;
+
+    animating = true;
+    const targetPos = cellPos(emptyIdx);
+    const el = tileEls[val];
+    const sz = getTileSize();
+
+    el.style.transition = `left 0.13s cubic-bezier(0.25,0.46,0.45,0.94), top 0.13s cubic-bezier(0.25,0.46,0.45,0.94)`;
+    el.style.left = targetPos.left + 'px';
+    el.style.top  = targetPos.top  + 'px';
+    el.style.width = el.style.height = sz + 'px';
+
+    tiles[emptyIdx] = val;
+    tiles[idx] = 0;
+    moves++;
+    moveCount.textContent = moves;
+
+    if (hintVisible || hintBtn.disabled) clearHint();
+
+    setTimeout(() => {
+      animating = false;
+      updateHighlights();
+      if (isGoal(tiles)) handleWin();
+    }, 140);
+  }
+
+  // Delegated click handler on board — always routes through handleTileClick(val)
+  board.addEventListener('click', e => {
+    const tile = e.target.closest('.tile');
+    if (!tile || !tile.dataset.val) return;
+    handleTileClick(parseInt(tile.dataset.val));
+  });
+  board.addEventListener('touchstart', e => {
+    const tile = e.target.closest('.tile');
+    if (!tile || !tile.dataset.val) return;
+    e.preventDefault();
+    handleTileClick(parseInt(tile.dataset.val));
+  }, { passive: false });
+
+  // ─── Hint ────────────────────────────────────────────
+  function clearHint() {
+    solverToken++;          // invalidates any in-flight solve
+    hintVal = null;
+    hintVisible = false;
+    hintBtn.textContent = 'Hint';
+    hintBtn.classList.remove('hint-active');
+    hintBtn.disabled = false;
+  }
+
+  function showHint() {
+    if (!gameActive) return;
+
+    if (hintVisible) {
+      clearHint();
+      updateHighlights();
+      return;
+    }
+
+    const token = ++solverToken;
+    const stateSnap = [...tiles];
+    const sizeSnap  = gridSize;
+
+    hintBtn.textContent = 'Solving…';
+    hintBtn.disabled = true;
+
+    solveChunked(stateSnap, sizeSnap, token, (result) => {
+      if (solverToken !== token) return; // stale
+      hintBtn.disabled = false;
+
+      if (result === null) {
+        hintBtn.textContent = 'Hint';
+        return;
+      }
+
+      hintVal = result;
+      hintVisible = true;
+      hintBtn.textContent = 'Hide Hint';
+      hintBtn.classList.add('hint-active');
+      updateHighlights();
+    });
+  }
+
+  // ─── Win ─────────────────────────────────────────────
+  function handleWin() {
+    stopTimer();
+    gameActive = false;
+    clearHint();
+    board.classList.add('solved-flash');
+    setTimeout(() => board.classList.remove('solved-flash'), 700);
+
+    const key = `${gridSize}x${gridSize}`;
+    const prev = bestScores[key];
+    const isNewBest = !prev || moves < prev.moves || (moves === prev.moves && seconds < prev.time);
+    if (isNewBest) {
+      bestScores[key] = { moves, time: seconds };
+      localStorage.setItem('nn_best', JSON.stringify(bestScores));
+    }
+
+    const m = Math.floor(seconds / 60), s = seconds % 60;
+    winStats.innerHTML = `<strong>${moves} moves</strong> · ${m}:${s.toString().padStart(2,'0')}<br>${isNewBest ? '★ new personal best' : `best: ${prev.moves} moves`}`;
+    setTimeout(() => winOverlay.classList.add('show'), 300);
+    updateBestDisplay();
+  }
+
+  // ─── New game ─────────────────────────────────────────
+  function newGame() {
+    winOverlay.classList.remove('show');
+    clearHint();
+    animating = false;
+    tiles = shuffle();
+    moves = 0;
+    moveCount.textContent = '0';
+    gameActive = true;
+    requestAnimationFrame(() => {
+      render();
+      startTimer();
+      updateBestDisplay();
+    });
+  }
+
+  // ─── Best display ─────────────────────────────────────
+  function updateBestDisplay() {
+    const key = `${gridSize}x${gridSize}`;
+    const b = bestScores[key];
+    if (b) {
+      const m = Math.floor(b.time / 60), s = b.time % 60;
+      bestDisp.textContent = `${b.moves}mv`;
+      bestRow.style.display = 'block';
+      pbDisp.textContent = `${b.moves} moves · ${m}:${s.toString().padStart(2,'0')} (${key})`;
+    } else {
+      bestDisp.textContent = '—';
+      bestRow.style.display = 'none';
+    }
+  }
+
+  // ─── Grid selector ────────────────────────────────────
+  document.querySelectorAll('.grid-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.grid-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      gridSize = parseInt(btn.dataset.size);
+      if (gridSize === 5)      document.documentElement.style.setProperty('--tile-size', 'clamp(56px, 14vw, 72px)');
+      else if (gridSize === 3) document.documentElement.style.setProperty('--tile-size', 'clamp(88px, 22vw, 112px)');
+      else                     document.documentElement.style.setProperty('--tile-size', 'clamp(68px, 18vw, 88px)');
+      newGame();
+    });
+  });
+
+  document.getElementById('new-btn').addEventListener('click', newGame);
+  hintBtn.addEventListener('click', showHint);
+
+  // ─── Keyboard ────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (!gameActive) return;
+    emptyIdx = tiles.indexOf(0);
+    const n = gridSize, row = Math.floor(emptyIdx / n), col = emptyIdx % n;
+    let target = -1;
+    if (e.key === 'ArrowUp'    && row < n-1) target = emptyIdx + n;
+    if (e.key === 'ArrowDown'  && row > 0)   target = emptyIdx - n;
+    if (e.key === 'ArrowLeft'  && col < n-1) target = emptyIdx + 1;
+    if (e.key === 'ArrowRight' && col > 0)   target = emptyIdx - 1;
+    if (target >= 0) { e.preventDefault(); handleTileClick(tiles[target]); }
+  });
+
+  // ─── Init ────────────────────────────────────────────
+  updateBestDisplay();
+  newGame();
+</script>
+</body>
+</html>
